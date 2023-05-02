@@ -20,13 +20,13 @@ public class JoueurIA3 extends Joueur {
         static final int   DRAW = 0 ;   // 和局
 
         @Override
-        protected int getPlayerHuman() {
-            return 1-player;
+        protected int getPlayerID() {
+            return player;
         }
 
         @Override
-        protected int getPlayerAI() {
-            return player;
+        protected int getEnnemieID() {
+            return 1-player;
         }
 
         @Override
@@ -38,7 +38,7 @@ public class JoueurIA3 extends Joueur {
                         plateau.move(i, j, player);
                         if(!enumerListener.try_action(new int[]{i, j})){
                             plateau.unmove(i, j);
-                            break;
+                            return;
                         }
                         plateau.unmove(i, j);
                     }
@@ -64,7 +64,7 @@ public class JoueurIA3 extends Joueur {
                         pos[0] = i;
                         pos[1] = j;
                     }
-                    if(plateau.valeur(i, j)==getPlayerAI()){
+                    if(plateau.valeur(i, j)==getPlayerID()){
                         count += 1;
                         break;
                     }
@@ -82,139 +82,65 @@ public class JoueurIA3 extends Joueur {
         }
 
         @Override
-        protected int currentPlayer() {
-            return plateau.currentPlayer();
+        protected int evalue(int playerID) {
+            return evaluate(plateau, playerID);
         }
 
-        @Override
-        protected int evalue(int playerAI) {
-            Jeu jeu = plateau;
-            if(jeu.isTerminer()){
-                if(jeu.isWin()){
-                    if(jeu.getWinner()==playerAI){
-                        return WIN;
-                    }else{
-                        return LOSE;
-                    }
-                }
-                return DRAW;
-            }else{
-                int find1 = 0;
-                int find2 = 0;
-                int count = 0;
-                boolean hasEmpty = false;
-                int chess = -1;
-                for(int i=0; i<jeu.hauteur(); i++){
-                    count = 0;
-                    chess = -1;
-                    hasEmpty = false;
-                    for(int j=0; j<jeu.largeur(); j++){
-                        int value = jeu.valeur(i, j);
-                        if(value==-1){
-                            hasEmpty = true;
-                        }else{
-                            if(chess==-1){
-                                chess = value;
-                            }
-                            if(chess==value){
-                                count++;
-                            }
-                        }
-                        if(hasEmpty && count==jeu.largeur()-1){
-                            if(chess==playerAI){
-                                find1 += 1;
-                            }else{
-                                find2 += 1;
-                            }
-                        }
-                    }
-                }
+        public int evaluate(Jeu jeu, int player) {
+            int[][] board = jeu.plateau;
+            // Check for a win or a loss
+            if (jeu.isWin()) {
+                return jeu.getWinner()==player ? INFINITY : -INFINITY;
+            }
 
-                count = 0;
-                chess = -1;
-                hasEmpty = false;
-                for(int j=0; j<jeu.largeur(); j++){
-                    count = 0;
-                    chess = -1;
-                    hasEmpty = false;
-                    for(int i=0; i<jeu.hauteur(); i++) {
-                        int value = jeu.valeur(i, j);
-                        if (value == -1) {
-                            hasEmpty = true;
-                        } else {
-                            if (chess == -1) {
-                                chess = value;
-                            }
-                            if (chess == value) {
-                                count++;
-                            }
-                        }
-                        if (hasEmpty && count == jeu.largeur() - 1) {
-                            if (chess == playerAI) {
-                                find1 += 1;
-                            } else {
-                                find2 += 1;
-                            }
-                        }
+            int score = 0;
+            // Count number of rows and columns with two of the same player's symbols
+            for (int i = 0; i < board.length; i++) {
+                int rowSum = 0, colSum = 0;
+                for (int j = 0; j < board[0].length; j++) {
+                    if (board[i][j] == player) {
+                        rowSum++;
+                    } else if (board[i][j] == opponent(player)) {
+                        rowSum--;
+                    }
+                    if (board[j][i] == player) {
+                        colSum++;
+                    } else if (board[j][i] == opponent(player)) {
+                        colSum--;
                     }
                 }
-
-                count = 0;
-                chess = -1;
-                hasEmpty = false;
-                for(int i=0; i<jeu.hauteur(); i++){
-                    int value = jeu.valeur(i, i);
-                    if (value == -1) {
-                        hasEmpty = true;
-                    } else {
-                        if (chess == -1) {
-                            chess = value;
-                        }
-                        if (chess == value) {
-                            count++;
-                        }
-                    }
-                    if (hasEmpty && count == jeu.largeur() - 1) {
-                        if (chess == playerAI) {
-                            find1 += 1;
-                        } else {
-                            find2 += 1;
-                        }
-                    }
+                if (rowSum == 2) {
+                    score += 10;
                 }
-
-                count = 0;
-                chess = -1;
-                hasEmpty = false;
-                for(int i=0; i<jeu.hauteur(); i++){
-                    int value = jeu.valeur(i, jeu.hauteur()-1-i);
-                    if (value == -1) {
-                        hasEmpty = true;
-                    } else {
-                        if (chess == -1) {
-                            chess = value;
-                        }
-                        if (chess == value) {
-                            count++;
-                        }
-                    }
-                    if (hasEmpty && count == jeu.largeur() - 1) {
-                        if (chess == playerAI) {
-                            find1 += 1;
-                        } else {
-                            find2 += 1;
-                        }
-                    }
-                }
-
-                if(find2>0){
-                    return -DOUBLE_LINK;
-                }
-                if(find1>0){
-                    return DOUBLE_LINK;
+                if (colSum == 2) {
+                    score += 10;
                 }
             }
-            return INPROGRESS;
+            // Count number of diagonals with two of the same player's symbols
+            int diagonal1Sum = 0, diagonal2Sum = 0;
+            for (int i = 0; i < board.length; i++) {
+                if (board[i][i] == player) {
+                    diagonal1Sum++;
+                } else if (board[i][i] == opponent(player)) {
+                    diagonal1Sum--;
+                }
+                if (board[i][board.length - i - 1] == player) {
+                    diagonal2Sum++;
+                } else if (board[i][board.length - i - 1] == opponent(player)) {
+                    diagonal2Sum--;
+                }
+            }
+            if (diagonal1Sum == 2) {
+                score += 10;
+            }
+            if (diagonal2Sum == 2) {
+                score += 10;
+            }
+            return score;
+        }
+
+        private int opponent(int player) {
+            return 1-player;
         }
 
         @Override

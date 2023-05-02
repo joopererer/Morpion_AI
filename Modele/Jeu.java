@@ -31,15 +31,38 @@ import Patterns.Observable;
 public class Jeu extends Observable {
 	boolean enCours;
 	boolean isWin;
-	int[][] plateau;
+	public int[][] plateau;
 	int libre;
 	int joueurCourant;
 	int winner;
 
 	public Jeu(int n) {
 		reset(n);
-//		plateau[1][1] = 0;
-//		plateau[1][2] = 1;
+//		plateau = new int[][]{
+//				{-1, 1, -1},
+//				{-1, 0, -1},
+//				{-1, -1, -1}
+//		};
+//		libre = 7;
+//		plateau = new int[][]{
+//				{-1, 1, 0},
+//				{-1, 0, 1},
+//				{1, 0, -1}
+//		};
+//		libre = 3;
+//		plateau = new int[][]{
+//				{-1, 1, 1},
+//				{-1, 0, -1},
+//				{0, -1, -1}
+//		};
+//		libre = 5;
+//		plateau = new int[][]{
+//				{-1, -1, 0},
+//				{-1, 0, -1},
+//				{1, 1, 0}
+//		};
+//		libre = 4;
+//		joueurCourant = 1;
 	}
 
 	public void reset(int n) {

@@ -7,6 +7,8 @@ import java.util.Random;
 public abstract class MinmaxAI {
 
     static final int INFINITY = 100 ;
+    static final int ALPHA = 0;
+    static final int BETA  = 1;
     Random r;
 
     class Node {
@@ -14,6 +16,7 @@ public abstract class MinmaxAI {
         //int[] pos;
         Object action;
         List<Node> fils;
+        boolean isCut;
 
         public void addFils(Node node){
             if(fils==null){
@@ -27,9 +30,15 @@ public abstract class MinmaxAI {
         r = new Random(System.currentTimeMillis());
     }
 
+    int cut_count = 0;
+
     public Node getNext(int depth){
+        cut_count = 0;
         Node node = new Node();
-        alpha_beta(node, depth, new int[]{-INFINITY, INFINITY}, currentPlayer()==1);
+        alpha_beta(node, depth, -INFINITY, INFINITY, true);
+        System.out.println("cut_count:"+cut_count);
+
+        printTree(node);
 
         List<Node> pos_possible = new ArrayList<>();
         int value = node.value;
@@ -49,80 +58,157 @@ public abstract class MinmaxAI {
         return node;
     }
 
-    protected abstract int currentPlayer();
-
     interface EnumerListener {
         public boolean try_action(Object action);
     }
 
-    public void alpha_beta(Node node, int depth, final int[] alpha_beta, boolean maximizingPlayer) {
-        //Result result = null;
+    public int alpha_beta(Node node, int depth, int alpha, int beta, boolean maximizingPlayer) {
         if(depth==0 || isTerminer()){
-            node.value = evalue(1);
-            //return result;
-            return;
+            return evalue(maximizingPlayer?getPlayerID():getEnnemieID());
         }
 
         int jouer = 0;
+        int[] alpha_beta = new int[]{alpha, beta};
         if(maximizingPlayer){
-            jouer = 1;//getPlayerAI();
-            final int[] bestValue = {-INFINITY};
+            jouer = getPlayerID();
             enumer_all_possibilities(jouer, new EnumerListener(){
                 @Override
                 public boolean try_action(Object action) {
                     Node fils = new Node();
                     node.addFils(fils);
                     fils.action = action;
-                    alpha_beta(fils, depth-1, alpha_beta, false);
-                    if(fils.value > bestValue[0]){
-                        bestValue[0] = fils.value;
-                        //bestPos = fils.pos_ld;
-                    }
-                    if(bestValue[0] >alpha_beta[1]){
+                    int value = alpha_beta(fils, depth-1, alpha_beta[ALPHA], alpha_beta[BETA], false);
+                    fils.value = value;
+                    alpha_beta[ALPHA] = Math.max(alpha_beta[ALPHA], value);
+                    if(alpha_beta[ALPHA] >= alpha_beta[BETA]){
+                        cut_count += 1;
+                        //System.out.println("Cut --> best:"+alpha_beta[ALPHA]+" > beta:"+alpha_beta[BETA]+" ... "+isTerminer());
+                        node.value = alpha_beta[ALPHA];
                         return false;
                     }
-                    //bestValue = Math.max(bestValue, fils.value);
-                    alpha_beta[0] = Math.max(alpha_beta[0], bestValue[0]);
                     return true;
                 }
             });
-            node.value = bestValue[0];
+            node.value = alpha_beta[ALPHA];
             //node.pos = bestPos;
+            return alpha_beta[ALPHA];
         }else{
-            jouer = 0;//getPlayerHuman();
-            final int[] bestValue = {INFINITY};
+            jouer = getEnnemieID();
             enumer_all_possibilities(jouer, new EnumerListener(){
                 @Override
                 public boolean try_action(Object action) {
                     Node fils = new Node();
                     node.addFils(fils);
                     fils.action = action;
-                    alpha_beta(fils, depth-1, alpha_beta, true);
-                    if(fils.value < bestValue[0]){
-                        bestValue[0] = fils.value;
-                        //bestPos = fils.pos_ld;
-                    }
-                    if(bestValue[0] < alpha_beta[0]){
+                    int value = alpha_beta(fils, depth-1, alpha_beta[ALPHA], alpha_beta[BETA], true);
+                    fils.value = value;
+                    alpha_beta[BETA] = Math.min(alpha_beta[BETA], value);
+                    if(alpha_beta[ALPHA] >= alpha_beta[BETA]){
+                        cut_count += 1;
+                        //System.out.println("Cut --> best:"+alpha_beta[BETA]+" < alpha:"+alpha_beta[ALPHA]+" ... "+isTerminer());
+                        node.value = alpha_beta[BETA];
                         return false;
                     }
-                    //bestValue = Math.min(bestValue, fils.value);
-                    alpha_beta[1] = Math.min(alpha_beta[1], bestValue[0]);
                     return true;
                 }
             });
-            node.value = bestValue[0];
+            node.value = alpha_beta[BETA];
             //node.pos = bestPos;
+            return alpha_beta[BETA];
         }
     }
 
-    protected abstract int getPlayerHuman();
+    protected abstract int getPlayerID();
 
-    protected abstract int getPlayerAI();
+    protected abstract int getEnnemieID();
 
     protected abstract void enumer_all_possibilities(int player, EnumerListener enumerListener);
 
-    protected abstract int evalue(int playerAI);
+    protected abstract int evalue(int playerID);
 
     protected abstract boolean isTerminer();
+
+    private void printTree(Node node) {
+        System.out.println(node.value);
+
+        List<Node> file1 = new ArrayList<>();
+        List<Node> file2 = new ArrayList<>();
+
+        // 1
+        if(node.fils!=null){
+            if(node.fils!=null) {
+                for (Node fils : node.fils) {
+                    if (fils.isCut) {
+                        System.out.print(" |(" + fils.value + ")");
+                    } else {
+                        System.out.print(" |" + fils.value);
+                    }
+                    file1.add(fils);
+                }
+            }
+        }
+        System.out.println();
+
+        // 2
+        while(!file1.isEmpty()){
+            node = file1.remove(0);
+            if(node.fils!=null) {
+                for (Node fils : node.fils) {
+                    if (fils.isCut) {
+                        System.out.print(" |(" + fils.value + ")");
+                    } else {
+                        System.out.print(" |" + fils.value);
+                    }
+                    file2.add(fils);
+                }
+                System.out.print(" || ");
+            }
+        }
+        System.out.println();
+
+        // 3
+        String[] str = new String[9];
+        while(!file2.isEmpty()){
+            node = file2.remove(0);
+            if(node.fils!=null){
+                int count = 0;
+                for(Node fils : node.fils){
+                    if(str[count]==null){
+                        str[count] = "";
+                    }
+                    String txt = null;
+                    if(fils.isCut){
+                        txt = "  |("+fils.value+")";
+                    }else{
+                        txt = "  |"+fils.value;
+                    }
+                    str[count] += txt;
+                    count++;
+                }
+                //System.out.print(" || ");
+            }
+        }
+
+        for(String txt : str){
+            if(txt!=null){
+                System.out.println(txt);
+            }
+        }
+        System.out.println();
+
+//		List<Node> file = new ArrayList<>();
+//		file.add(node);
+//
+//
+//		while(!file.isEmpty()){
+//			node = file.remove(0);
+//			System.out.print(" |"+node.value);
+//			if(node.fils!=null){
+//				for(Node fils : node.fils){
+//					file.add(fils);
+//				}
+//			}
+//		}
+    }
 
 }
